@@ -206,6 +206,18 @@ func (manager *defaultDocumentManager) Flush() error {
 				}
 
 			}
+
+			// deal with composite index creation
+			// TODO it should be dealt with once
+			if metaData.hasFieldWithComposite() {
+				for _, index := range metaData.getComposites() {
+					err = manager.database.C(metaData.targetDocument).EnsureIndex(index)
+					if err != nil {
+						return err
+					}
+				}
+
+			}
 			if err := manager.doPersist(document); err != nil {
 				return err
 			}
@@ -867,6 +879,38 @@ func (meta metadata) getIndexes() []mgo.Index {
 	return indexes
 }
 
+// hasFieldWithComposite returns true if a field has an composite index
+func (meta metadata) hasFieldWithComposite() bool {
+	for _, field := range meta.fields {
+		if field.composite == true {
+			return true
+		}
+	}
+	return false
+}
+
+// findFieldsWithComposite returns the fields with an composite index definition
+func (meta metadata) findFieldsWithComposite() []field {
+	fieldsWithComposite := []field{}
+	for _, field := range meta.fields {
+		if field.composite == true {
+			fieldsWithComposite = append(fieldsWithComposite, field)
+		}
+	}
+	return fieldsWithComposite
+}
+
+// getComposites create a list of indexes from the metadata
+func (meta metadata) getComposites() []mgo.Index {
+	indexes := []mgo.Index{}
+	keys := []string{}
+	for _, field := range meta.findFieldsWithComposite() {
+		keys = append(keys,field.key)
+	}
+	indexes = append(indexes, mgo.Index{Key: keys, Unique: true})
+	return indexes
+}
+
 func (meta metadata) findIDField() (f field, found bool) {
 	for _, field := range meta.fields {
 		if field.key == "_id" {
@@ -952,6 +996,8 @@ func (metas metadatas) findMetadataByCollectionName(name string) (metadata, refl
 }
 
 type field struct {
+	// index is a index composite
+	composite bool
 	// index is a index
 	index bool
 	// unique is a unique index
@@ -1232,6 +1278,8 @@ func getTypeMetadatas(value interface{}) (meta metadata, err error) {
 						MetaField.unique = true
 					}
 				}
+			case "composite":
+				MetaField.composite = true
 			case "referencemany", "referenceone":
 				Relation := relation{}
 				switch strings.ToLower(definition.Name) {

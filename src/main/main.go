@@ -18,8 +18,8 @@ type Pay struct {
 	//
 	// index(unique:true) creates an unix index on key Name, so
 	// there is no duplicates for that key
-	Name string `bson:"Name" `
-	Last string `bson:"Last" `
+	Name string `bson:"Name" odm:"composite"`
+	Last string `bson:"Last" odm:"composite"`
 }
 
 type Author struct {
@@ -111,7 +111,7 @@ func main() {
 		return
 	}
 	// Index
-	index := mgo.Index{
+	/*index := mgo.Index{
 		Key:        []string{"Name", "Last"},
 		Unique:     true,
 		DropDups:   true,
@@ -119,7 +119,7 @@ func main() {
 		Sparse:     true,
 	}
 
-	documentManager.GetDB().C("Pay").EnsureIndex(index)
+	documentManager.GetDB().C("Pay").EnsureIndex(index)*/
 	pay := &Pay{Name:"1",Last:"2"}
 	documentManager.Persist(pay)
 	/* This is how collections now look like :
